@@ -54,8 +54,13 @@ cr_object
 alloc_vector (memory_t* memory, cr_int capacity)
 {
   cr_object base = alloc_base (memory, VECTOR);
+
   base->vector.capacity = capacity;
   base->vector.data = safe_calloc (capacity, sizeof (cr_object));
+
+  for (int i = 0; i < capacity; i++)
+    VECTOR_DATA (base)[i] = NIL;
+
   return base;
 }
 
@@ -119,56 +124,6 @@ memory_own (memory_t* memory, cr_object object)
 }
 
 #undef MEMORY_EXPANSION
-
-void
-borrow_object (cr_object object)
-{
-  assert_non_null (object);
-
-  if (IS_CONS (object))
-    {
-      while (!IS_NIL (object))
-        {
-          object->ref_count++;
-          borrow_object (CAR (object));
-          object = CDR (object);
-        }
-    }
-  else if (IS_VECTOR (object))
-    {
-      for (int i = 0; i < VECTOR_CAPACITY (object); i++)
-        borrow_object (VECTOR_DATA (object)[i]);
-
-      object->ref_count++;
-    }
-  else
-    object->ref_count++;
-}
-
-void
-return_object (cr_object object)
-{
-  assert_non_null (object);
-
-  if (IS_CONS (object))
-    {
-      while (!IS_NIL (object))
-        {
-          object->ref_count--;
-          return_object (CAR (object));
-          object = CDR (object);
-        }
-    }
-  else if (IS_VECTOR (object))
-    {
-      for (int i = 0; i < VECTOR_CAPACITY (object); i++)
-        return_object (VECTOR_DATA (object)[i]);
-
-      object->ref_count--;
-    }
-  else
-    object->ref_count--;
-}
 
 void
 run_gc (memory_t* memory)

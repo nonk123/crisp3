@@ -60,3 +60,87 @@ free_symbol (cr_symbol* symbol)
       symbol->name = NULL;
     }
 }
+
+void
+borrow_object (cr_object object)
+{
+  assert_non_null (object);
+
+  if (IS_NIL (object))
+    return;
+
+  if (IS_CONS (object))
+    {
+      while (!IS_NIL (object))
+        {
+          object->ref_count++;
+          borrow_object (CAR (object));
+          object = CDR (object);
+        }
+    }
+  else if (IS_VECTOR (object))
+    {
+      for (int i = 0; i < VECTOR_CAPACITY (object); i++)
+        borrow_object (VECTOR_DATA (object)[i]);
+
+      object->ref_count++;
+    }
+  else
+    object->ref_count++;
+}
+
+void
+return_object (cr_object object)
+{
+  assert_non_null (object);
+
+  if (IS_NIL (object))
+    return;
+
+  if (IS_CONS (object))
+    {
+      while (!IS_NIL (object))
+        {
+          object->ref_count--;
+          return_object (CAR (object));
+          object = CDR (object);
+        }
+    }
+  else if (IS_VECTOR (object))
+    {
+      for (int i = 0; i < VECTOR_CAPACITY (object); i++)
+        return_object (VECTOR_DATA (object)[i]);
+
+      object->ref_count--;
+    }
+  else
+    object->ref_count--;
+}
+
+cr_object
+vector_get (cr_object vector, cr_int index)
+{
+  assert_non_null (vector);
+  assert (IS_VECTOR (vector), "Passed a non-vector object");
+  assert (index >= 0 && index < VECTOR_CAPACITY (vector),
+          "Index out of bounds");
+
+  return VECTOR_DATA (vector)[index];
+}
+
+void
+vector_set (cr_object vector, cr_int index, cr_object new_value)
+{
+  assert_non_null (vector);
+  assert_non_null (new_value);
+
+  assert (IS_VECTOR (vector), "Passed a non-vector object");
+  assert (index >= 0 && index < VECTOR_CAPACITY (vector),
+          "Index out of bounds");
+
+  cr_object old_value = VECTOR_DATA (vector)[index];
+  return_object (old_value);
+
+  borrow_object (new_value);
+  VECTOR_DATA (vector)[index] = new_value;
+}

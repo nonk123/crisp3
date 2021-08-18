@@ -1,5 +1,5 @@
 OBJS = util.o buffer.o types.o gc.o stack.o
-TESTS = test_list
+TESTS = test_list test_vector
 
 CFLAGS=-ggdb -Wall
 

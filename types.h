@@ -91,4 +91,10 @@ cr_symbol make_interned_symbol (const char*);
 cr_symbol make_uninterned_symbol ();
 void free_symbol (cr_symbol*);
 
+void borrow_object (cr_object);
+void return_object (cr_object);
+
+cr_object vector_get (cr_object, cr_int);
+void vector_set (cr_object, cr_int, cr_object);
+
 #endif /* TYPES_H */

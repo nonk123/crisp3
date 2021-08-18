@@ -21,9 +21,6 @@ void free_memory (memory_t*);
 
 void memory_own (memory_t*, cr_object);
 
-void borrow_object (cr_object);
-void return_object (cr_object);
-
 void run_gc (memory_t*);
 
 #endif /* GC_H */
