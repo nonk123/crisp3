@@ -1,0 +1,3 @@
+BasedOnStyle: GNU
+SpaceAfterCStyleCast: true
+PointerAlignment: Left

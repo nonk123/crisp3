@@ -1,0 +1,14 @@
+\#*\#
+.\#*
+*~
+
+.*cache/
+compile_commands.json
+
+vgcore.*
+
+*.o
+crisp3
+
+test_*
+!test_*.c
