@@ -30,6 +30,8 @@
 
 #define assert_mem(expr) assert ((expr) != NULL, "Memory allocation failed")
 
+#define error(...) assert (0, __VA_ARGS__)
+
 void* safe_malloc (int);
 void* safe_calloc (int, int);
 void* safe_realloc (void*, int);

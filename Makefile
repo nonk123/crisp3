@@ -1,7 +1,7 @@
-OBJS = util.o buffer.o types.o gc.o stack.o
-TESTS = test_list test_vector
+OBJS = util.o buffer.o types.o gc.o stack.o parser.o
+TESTS = test_list test_vector test_parser
 
-CFLAGS=-ggdb -Wall
+CFLAGS=-ggdb -lm -Wall
 
 all: crisp3
 
@@ -25,3 +25,4 @@ buffer.o: buffer.c buffer.h util.o
 types.o: types.c types.h util.o
 gc.o: gc.c gc.h util.o types.o
 stack.o: stack.c stack.h gc.o util.o
+parser.o: parser.c parser.h buffer.o types.o gc.o util.h

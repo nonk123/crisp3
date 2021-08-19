@@ -17,24 +17,41 @@ free_object (cr_object object)
       assert_non_null (VECTOR_DATA (object));
       free (VECTOR_DATA (object));
     }
+  else if (IS_SYMBOL (object))
+    {
+      cr_symbol symbol = AS_SYMBOL (object);
+
+      if (IS_INTERNED (symbol))
+        {
+          assert_non_null (symbol.name);
+          free (symbol.name);
+        }
+    }
 
   free (object);
 }
 
 cr_symbol
-make_interned_symbol (const char* name)
+make_interned_symbol (const char* name, int length)
 {
   assert_non_null (name);
 
   cr_symbol symbol;
 
-  symbol.name = safe_calloc (MAX_SYMBOL_LENGTH, sizeof *symbol.name);
-  strcpy (symbol.name, name);
+  assert (length <= MAX_SYMBOL_LENGTH, "Symbol length exceeds the limit");
+  symbol.name = safe_calloc (length, sizeof *symbol.name);
+  strncpy (symbol.name, name, length);
 
   symbol.type = INTERNED;
-  symbol.length = 0;
+  symbol.length = length;
 
   return symbol;
+}
+
+cr_symbol
+make_interned_symbol_s (const char* name)
+{
+  return make_interned_symbol (name, strlen (name) - 1);
 }
 
 cr_symbol

@@ -16,8 +16,8 @@ main ()
   assert (IS_INTEGER (a), "A is not an integer");
   assert (IS_INTEGER (b), "B is not an integer");
 
-  bind (&stack, a, make_interned_symbol ("a"));
-  bind (&stack, b, make_interned_symbol ("b"));
+  bind (&stack, a, make_interned_symbol_s ("a"));
+  bind (&stack, b, make_interned_symbol_s ("b"));
 
   cr_object list = alloc_cons (&memory, a, alloc_cons (&memory, b, NIL));
 
@@ -25,7 +25,7 @@ main ()
   assert (IS_CONS (CDR (list)), "CDR of LIST is not a cons cell");
   assert (IS_NIL (CDDR (list)), "LIST is unterminated");
 
-  bind (&stack, list, make_interned_symbol ("list"));
+  bind (&stack, list, make_interned_symbol_s ("list"));
 
   cr_int sum = 0;
   cr_object current = list;

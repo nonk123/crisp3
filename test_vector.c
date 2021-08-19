@@ -15,7 +15,7 @@ main ()
   cr_object grid = alloc_vector (&memory, size);
   assert (IS_VECTOR (grid), "GRID is not a vector");
 
-  bind (&stack, grid, make_interned_symbol ("grid"));
+  bind (&stack, grid, make_interned_symbol_s ("grid"));
 
   /* Generate a simple multiplication table. */
   for (int i = 1; i <= size; i++)

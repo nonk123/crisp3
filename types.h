@@ -13,6 +13,15 @@
 #define IS_CHARACTER(object) ((object)->type == CHARACTER)
 #define AS_CHARACTER(object) ((object)->character)
 
+#define IS_SYMBOL(object) ((object)->type == SYMBOL)
+#define AS_SYMBOL(object) ((object)->symbol)
+
+#define SYMBOL_NAME(object) (AS_SYMBOL (object).name)
+#define SYMBOL_LENGTH(object) (AS_SYMBOL (object).length)
+
+#define IS_INTERNED(symbol) ((symbol).type == INTERNED)
+#define IS_UNINTERNED(symbol) ((symbol).type == UNINTERNED)
+
 #define IS_VECTOR(object) ((object)->type == VECTOR)
 #define AS_VECTOR(object) ((object)->vector)
 
@@ -25,6 +34,8 @@
 #define CAR(object) (AS_CONS (object).car)
 #define CDR(object) (AS_CONS (object).cdr)
 #define CDDR(object) (CDR (CDR (object)))
+
+typedef unsigned char small_enum;
 
 typedef int cr_int;
 typedef double cr_real;
@@ -87,8 +98,10 @@ extern struct cr_object_t nil;
 
 void free_object (cr_object);
 
-cr_symbol make_interned_symbol (const char*);
+cr_symbol make_interned_symbol (const char*, int);
+cr_symbol make_interned_symbol_s (const char*);
 cr_symbol make_uninterned_symbol ();
+
 void free_symbol (cr_symbol*);
 
 void borrow_object (cr_object);

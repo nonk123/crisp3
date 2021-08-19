@@ -43,6 +43,22 @@ alloc_char (memory_t* memory, cr_char value)
 }
 
 cr_object
+alloc_interned_symbol (memory_t* memory, cr_char* name, cr_int length)
+{
+  cr_object base = alloc_base (memory, SYMBOL);
+  base->symbol = make_interned_symbol (name, length);
+  return base;
+}
+
+cr_object
+alloc_uninterned_symbol (memory_t* memory)
+{
+  cr_object base = alloc_base (memory, SYMBOL);
+  base->symbol = make_uninterned_symbol ();
+  return base;
+}
+
+cr_object
 alloc_cons (memory_t* memory, cr_object car, cr_object cdr)
 {
   cr_object base = alloc_base (memory, CONS);
@@ -62,6 +78,33 @@ alloc_vector (memory_t* memory, cr_int capacity)
     VECTOR_DATA (base)[i] = NIL;
 
   return base;
+}
+
+void
+list_append (memory_t* memory, cr_object* list, cr_object value)
+{
+  assert_non_null (list);
+  assert_non_null (*list);
+  assert_non_null (value);
+
+  if (IS_NIL (*list))
+    {
+      *list = alloc_cons (memory, value, NIL);
+      return;
+    }
+
+  cr_object tail = NIL;
+  cr_object current = *list;
+
+  while (!IS_NIL (current))
+    {
+      assert (IS_CONS (current),
+              "Expected a pointer nil (empty list) or a cons cell");
+      tail = current;
+      current = CDR (current);
+    }
+
+  CDR (tail) = alloc_cons (memory, value, NIL);
 }
 
 memory_t
