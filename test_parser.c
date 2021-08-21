@@ -76,14 +76,7 @@ print_object (cr_object object)
 int
 main ()
 {
-  memory_t memory = make_memory ();
-
-  buffer_t buffer = make_buffer ();
-  buffer_read_by_file_name (&buffer, "test.lisp");
-
-  parser_context_t parser_ctx = make_parser_context (&memory, &buffer);
-
-  cr_object result = parse (&parser_ctx);
+  cr_object result = parse_file ("test.lisp");
 
   printf ("Parser result: ");
   print_object (result);
@@ -93,8 +86,7 @@ main ()
 
   assert (!memory.objects_count, "Orphaned objects remain in memory");
 
-  free_buffer (&buffer);
-  free_memory (&memory);
+  free_memory ();
 
   return 0;
 }

@@ -5,17 +5,30 @@
 #include <string.h>
 
 parser_context_t
-make_parser_context (memory_t* memory, buffer_t* buffer)
+make_parser_context (buffer_t* buffer)
 {
+  assert_non_null (buffer);
+
   parser_context_t ctx;
 
   ctx.row = ctx.column = ctx.position = 0;
   ctx.f_line_end = ctx.f_comment = ctx.f_content = ctx.f_in_string = 0;
-
-  ctx.memory = memory;
   ctx.buffer = buffer;
 
   return ctx;
+}
+
+cr_object
+parse_file (const char* name)
+{
+  buffer_t buffer = make_buffer ();
+  buffer_read_by_file_name (&buffer, name);
+
+  parser_context_t ctx = make_parser_context (&buffer);
+  cr_object result = parse (&ctx);
+
+  free_buffer (&buffer);
+  return result;
 }
 
 #define HAS_NEXT (ctx->position < ctx->buffer->length)
@@ -62,7 +75,7 @@ parse_list (parser_context_t* ctx)
           break;
         }
 
-      list_append (ctx->memory, &result, parse (ctx));
+      list_append (&result, parse (ctx));
 
       /* Cons detection. */
 
@@ -112,13 +125,13 @@ parse_vector (parser_context_t* ctx)
           break;
         }
 
-      list_append (ctx->memory, &result, parse (ctx));
+      list_append (&result, parse (ctx));
       length++;
     }
 
   p_assert (terminated, "No matching ] found for the vector");
 
-  cr_object vector = alloc_vector (ctx->memory, length);
+  cr_object vector = alloc_vector (length);
 
   for (int i = 0; i < length; i++)
     {
@@ -176,11 +189,11 @@ parse_string (parser_context_t* ctx)
 
   p_assert (!ctx->f_in_string, "Unterminated string literal");
 
-  cr_object result = alloc_vector (ctx->memory, buffer.length);
+  cr_object result = alloc_vector (buffer.length);
 
   for (int i = 0; i < buffer.length; i++)
     {
-      cr_object char_object = alloc_char (ctx->memory, buffer.data[i]);
+      cr_object char_object = alloc_char (buffer.data[i]);
       vector_set (result, i, char_object);
     }
 
@@ -273,8 +286,8 @@ parse_number (parser_context_t* ctx)
 
   free_buffer (&buffer);
 
-  cr_object number = is_real ? alloc_real (ctx->memory, real * sign)
-                             : alloc_integer (ctx->memory, integer * sign);
+  cr_object number
+      = is_real ? alloc_real (real * sign) : alloc_integer (integer * sign);
   return number;
 }
 
@@ -288,7 +301,7 @@ parse_character (parser_context_t* ctx)
   assert (IS_INTEGER (value), "Only integer-valued characters are allowed");
   assert (AS_INTEGER (value) >= -128 && AS_INTEGER (value) <= 127,
           "Only signed, single-byte values are supported");
-  return alloc_char (ctx->memory, AS_INTEGER (value));
+  return alloc_char (AS_INTEGER (value));
 }
 
 cr_object
@@ -321,10 +334,12 @@ parse_symbol (parser_context_t* ctx)
   p_assert (buffer.length > 0, "Empty identifier");
 
   if (buffer.length == 3 && !strncmp (buffer.data, "nil", 3))
-    return NIL;
+    {
+      free_buffer (&buffer);
+      return NIL;
+    }
 
-  cr_object symbol
-      = alloc_interned_symbol (ctx->memory, buffer.data, buffer.length);
+  cr_object symbol = alloc_interned_symbol (buffer.data, buffer.length);
   free_buffer (&buffer);
   return symbol;
 }

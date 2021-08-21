@@ -3,73 +3,125 @@
 #include "gc.h"
 #include "util.h"
 
-cr_object
-alloc_base (memory_t* memory, int type)
-{
-  assert_non_null (memory);
+memory_t memory = { NULL, 0, 0 };
 
+void
+free_memory ()
+{
+  if (memory.objects != NULL)
+    {
+      free (memory.objects);
+      memory.objects = NULL;
+    }
+
+  memory.objects_count = 0;
+  memory.capacity = 0;
+}
+
+#define MEMORY_EXPANSION 1024
+
+void
+memory_own (cr_object object)
+{
+  assert_non_null (object);
+
+  if (memory.objects_count == memory.capacity)
+    {
+      int capacity_before = memory.capacity;
+      cr_object* objects_before = memory.objects;
+
+      memory.capacity += MEMORY_EXPANSION;
+      memory.objects = safe_calloc (memory.capacity, sizeof *objects_before);
+
+      for (int i = 0; i < memory.capacity; i++)
+        {
+          if (i >= capacity_before)
+            memory.objects[i] = NULL;
+          else
+            memory.objects[i] = objects_before[i];
+        }
+
+      free (objects_before);
+    }
+
+  for (int i = 0; i < memory.capacity; i++)
+    {
+      if (memory.objects[i] == NULL)
+        {
+          memory.objects[i] = object;
+          memory.objects_count++;
+          break;
+        }
+    }
+}
+
+#undef MEMORY_EXPANSION
+
+cr_object
+alloc_base (int type)
+{
   cr_object base = safe_malloc (sizeof *base);
 
   base->type = type;
   base->ref_count = 0;
 
-  memory_own (memory, base);
+  memory_own (base);
 
   return base;
 }
 
 cr_object
-alloc_integer (memory_t* memory, cr_int value)
+alloc_integer (cr_int value)
 {
-  cr_object base = alloc_base (memory, INTEGER);
+  cr_object base = alloc_base (INTEGER);
   base->integer = value;
   return base;
 }
 
 cr_object
-alloc_real (memory_t* memory, cr_real value)
+alloc_real (cr_real value)
 {
-  cr_object base = alloc_base (memory, REAL);
+  cr_object base = alloc_base (REAL);
   base->real = value;
   return base;
 }
 
 cr_object
-alloc_char (memory_t* memory, cr_char value)
+alloc_char (cr_char value)
 {
-  cr_object base = alloc_base (memory, CHARACTER);
+  cr_object base = alloc_base (CHARACTER);
   base->character = value;
   return base;
 }
 
 cr_object
-alloc_interned_symbol (memory_t* memory, cr_char* name, cr_int length)
+alloc_interned_symbol (cr_char* name, cr_int length)
 {
-  cr_object base = alloc_base (memory, SYMBOL);
+  cr_object base = alloc_base (SYMBOL);
   base->symbol = make_interned_symbol (name, length);
   return base;
 }
 
 cr_object
-alloc_uninterned_symbol (memory_t* memory)
+alloc_uninterned_symbol ()
 {
-  cr_object base = alloc_base (memory, SYMBOL);
+  cr_object base = alloc_base (SYMBOL);
   base->symbol = make_uninterned_symbol ();
   return base;
 }
 
 cr_object
-alloc_cons (memory_t* memory, cr_object car, cr_object cdr)
+alloc_cons (cr_object car, cr_object cdr)
 {
-  cr_object base = alloc_base (memory, CONS);
+  cr_object base = alloc_base (CONS);
   base->cons = (cr_cons){ .car = car, .cdr = cdr };
   return base;
 }
 
 cr_object
-alloc_vector (memory_t* memory, cr_int capacity)
+alloc_vector (cr_int capacity)
 {
-  cr_object base = alloc_base (memory, VECTOR);
+  cr_object base = alloc_base (VECTOR);
 
   base->vector.capacity = capacity;
   base->vector.data = safe_calloc (capacity, sizeof (cr_object));
@@ -81,7 +133,7 @@ alloc_vector (memory_t* memory, cr_int capacity)
 }
 
 void
-list_append (memory_t* memory, cr_object* list, cr_object value)
+list_append (cr_object* list, cr_object value)
 {
   assert_non_null (list);
   assert_non_null (*list);
@@ -89,7 +141,7 @@ list_append (memory_t* memory, cr_object* list, cr_object value)
 
   if (IS_NIL (*list))
     {
-      *list = alloc_cons (memory, value, NIL);
+      *list = alloc_cons (value, NIL);
       return;
     }
 
@@ -103,88 +155,22 @@ list_append (memory_t* memory, cr_object* list, cr_object value)
       current = CDR (current);
     }
 
-  CDR (tail) = alloc_cons (memory, value, NIL);
+  CDR (tail) = alloc_cons (value, NIL);
   own_object (tail, CDR (tail));
 }
 
-memory_t
-make_memory ()
-{
-  memory_t memory;
-  memory.objects = NULL;
-  memory.objects_count = memory.capacity = 0;
-  return memory;
-}
-
 void
-free_memory (memory_t* memory)
+run_gc ()
 {
-  assert_non_null (memory);
-
-  if (memory->objects != NULL)
+  for (int i = 0; i < memory.capacity; i++)
     {
-      free (memory->objects);
-      memory->objects = NULL;
-    }
-
-  memory->capacity = 0;
-  memory->objects_count = 0;
-}
-
-#define MEMORY_EXPANSION 1024
-
-void
-memory_own (memory_t* memory, cr_object object)
-{
-  assert_non_null (memory);
-  assert_non_null (object);
-
-  if (memory->objects_count == memory->capacity)
-    {
-      int capacity_before = memory->capacity;
-      cr_object* objects_before = memory->objects;
-
-      memory->capacity += MEMORY_EXPANSION;
-      memory->objects = safe_calloc (memory->capacity, sizeof *objects_before);
-
-      for (int i = 0; i < memory->capacity; i++)
-        {
-          if (i >= capacity_before)
-            memory->objects[i] = NULL;
-          else
-            memory->objects[i] = objects_before[i];
-        }
-
-      free (objects_before);
-    }
-
-  for (int i = 0; i < memory->capacity; i++)
-    {
-      if (memory->objects[i] == NULL)
-        {
-          memory->objects[i] = object;
-          memory->objects_count++;
-          break;
-        }
-    }
-}
-
-#undef MEMORY_EXPANSION
-
-void
-run_gc (memory_t* memory)
-{
-  assert_non_null (memory);
-
-  for (int i = 0; i < memory->capacity; i++)
-    {
-      cr_object object = memory->objects[i];
+      cr_object object = memory.objects[i];
 
       if (object != NULL && object->ref_count == 0)
         {
           free_object (object);
-          memory->objects[i] = NULL;
-          memory->objects_count--;
+          memory.objects[i] = NULL;
+          memory.objects_count--;
         }
     }
 }

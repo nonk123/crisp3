@@ -10,21 +10,20 @@ struct memory_t
   int objects_count, capacity;
 };
 
-cr_object alloc_integer (memory_t*, cr_int);
-cr_object alloc_real (memory_t*, cr_real);
-cr_object alloc_char (memory_t*, cr_char);
-cr_object alloc_interned_symbol (memory_t*, cr_char*, cr_int);
-cr_object alloc_uninterned_symbol (memory_t*);
-cr_object alloc_cons (memory_t*, cr_object, cr_object);
-cr_object alloc_vector (memory_t*, cr_int);
+extern memory_t memory;
 
-void list_append (memory_t*, cr_object*, cr_object);
+void free_memory ();
 
-memory_t make_memory ();
-void free_memory (memory_t*);
+cr_object alloc_integer (cr_int);
+cr_object alloc_real (cr_real);
+cr_object alloc_char (cr_char);
+cr_object alloc_interned_symbol (cr_char*, cr_int);
+cr_object alloc_uninterned_symbol ();
+cr_object alloc_cons (cr_object, cr_object);
+cr_object alloc_vector (cr_int);
 
-void memory_own (memory_t*, cr_object);
+void list_append (cr_object*, cr_object);
 
-void run_gc (memory_t*);
+void run_gc ();
 
 #endif /* GC_H */
