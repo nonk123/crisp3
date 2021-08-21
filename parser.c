@@ -2,6 +2,7 @@
 #include "util.h"
 
 #include <math.h>
+#include <string.h>
 
 parser_context_t
 make_parser_context (memory_t* memory, buffer_t* buffer)
@@ -9,7 +10,7 @@ make_parser_context (memory_t* memory, buffer_t* buffer)
   parser_context_t ctx;
 
   ctx.row = ctx.column = ctx.position = 0;
-  ctx.f_line_end = ctx.f_comment = ctx.f_content = 0;
+  ctx.f_line_end = ctx.f_comment = ctx.f_content = ctx.f_in_string = 0;
 
   ctx.memory = memory;
   ctx.buffer = buffer;
@@ -19,19 +20,23 @@ make_parser_context (memory_t* memory, buffer_t* buffer)
 
 #define HAS_NEXT (ctx->position < ctx->buffer->length)
 #define CURRENT (ctx->buffer->data[ctx->position])
-#define PEEK(N)                                                               \
-  (ctx->position + (N) >= 0 ? (ctx->position + (N) < ctx->buffer->length      \
-                                   ? ctx->buffer->data[ctx->position + (N)]   \
+#define PEEK(n)                                                               \
+  (ctx->position + (n) >= 0 ? (ctx->position + (n) < ctx->buffer->length      \
+                                   ? ctx->buffer->data[ctx->position + (n)]   \
                                    : ctx->buffer->data[ctx->position - 1])    \
                             : ctx->buffer->data[0])
-#define IS_STRING_LITERAL (CURRENT == '\"' && PEEK (-1) != '\\')
-#define IS_SEPARATOR                                                          \
-  (CURRENT == ' ' || CURRENT == '\t' || CURRENT == '\r' || CURRENT == '\n')
+#define IS_STRING_LITERAL(n) (PEEK (n) == '\"' && PEEK (n - 1) != '\\')
+#define IS_SEPARATOR(n)                                                       \
+  (PEEK (n) == ' ' || PEEK (n) == '\t' || PEEK (n) == '\r' || PEEK (n) == '\n')
+
+#define p_assert(expr, message, ...)                                          \
+  assert ((expr), message " (line %d:%d)" __VA_OPT__ (, ) __VA_ARGS__,        \
+          ctx->row + 1, ctx->column)
 
 void
 advance (parser_context_t* ctx)
 {
-  ctx->position += 1;
+  ctx->position++;
 
   if (ctx->f_line_end)
     {
@@ -39,7 +44,7 @@ advance (parser_context_t* ctx)
       ctx->column = 0;
     }
   else
-    ctx->column += 1;
+    ctx->column++;
 }
 
 cr_object
@@ -50,18 +55,78 @@ parse_list (parser_context_t* ctx)
 
   while (HAS_NEXT)
     {
-      list_append (ctx->memory, &result, parse (ctx));
-
       if (CURRENT == ')')
         {
           advance (ctx);
           terminated = 1;
           break;
         }
+
+      list_append (ctx->memory, &result, parse (ctx));
+
+      /* Cons detection. */
+
+      while (HAS_NEXT && IS_SEPARATOR (0))
+        advance (ctx);
+
+      if (CURRENT == '.' && IS_SEPARATOR (1))
+        {
+          advance (ctx);
+
+          CDR (result) = parse (ctx);
+
+          while (HAS_NEXT && IS_SEPARATOR (0))
+            advance (ctx);
+
+          assert (CURRENT == ')', "Extra elements in cons cell");
+          advance (ctx);
+
+          return result;
+        }
     }
 
-  assert (terminated, "No matching ) found for the list");
+  p_assert (terminated, "No matching ) found for the list");
   return result;
+}
+
+cr_object
+parse_vector (parser_context_t* ctx)
+{
+  cr_object result = NIL;
+  int terminated = 0;
+  cr_int length = 0;
+
+  while (HAS_NEXT)
+    {
+      if (IS_SEPARATOR (0))
+        {
+          advance (ctx);
+          continue;
+        }
+
+      if (CURRENT == ']')
+        {
+          p_assert (length > 0, "Vector cannot be empty");
+          advance (ctx);
+          terminated = 1;
+          break;
+        }
+
+      list_append (ctx->memory, &result, parse (ctx));
+      length++;
+    }
+
+  p_assert (terminated, "No matching ] found for the vector");
+
+  cr_object vector = alloc_vector (ctx->memory, length);
+
+  for (int i = 0; i < length; i++)
+    {
+      vector_set (vector, i, CAR (result));
+      result = CDR (result);
+    }
+
+  return vector;
 }
 
 cr_object
@@ -71,7 +136,7 @@ parse_string (parser_context_t* ctx)
 
   while (HAS_NEXT)
     {
-      if (IS_STRING_LITERAL)
+      if (IS_STRING_LITERAL (0))
         {
           ctx->f_in_string = 0;
           advance (ctx);
@@ -100,7 +165,7 @@ parse_string (parser_context_t* ctx)
               buffer_push (&buffer, '"');
               break;
             default:
-              error ("Unknown escape sequence");
+              p_assert (0, "Unknown escape sequence");
             }
         }
 
@@ -109,14 +174,14 @@ parse_string (parser_context_t* ctx)
       advance (ctx);
     }
 
-  assert (!ctx->f_in_string, "Unterminated string literal");
+  p_assert (!ctx->f_in_string, "Unterminated string literal");
 
   cr_object result = alloc_vector (ctx->memory, buffer.length);
 
   for (int i = 0; i < buffer.length; i++)
     {
       cr_object char_object = alloc_char (ctx->memory, buffer.data[i]);
-      VECTOR_DATA (result)[i] = char_object;
+      vector_set (result, i, char_object);
     }
 
   free_buffer (&buffer);
@@ -149,7 +214,8 @@ parse_number (parser_context_t* ctx)
     }
   else
     {
-      assert (CURRENT >= '0' && CURRENT <= '9', "Expected digit, '+', or '-'");
+      p_assert (CURRENT >= '0' && CURRENT <= '9',
+                "Expected a digit, '+', or '-'");
       sign = 1;
     }
 
@@ -160,13 +226,13 @@ parse_number (parser_context_t* ctx)
     {
       if (CURRENT == '.')
         {
-          assert (fp_position == -1, "Unexpected '.'");
+          p_assert (fp_position == -1, "Unexpected '.'");
           fp_position = ctx->position;
           is_real = 1;
         }
       else
         {
-          if (IS_SEPARATOR || CURRENT < '0' || CURRENT > '9')
+          if (IS_SEPARATOR (0) || CURRENT < '0' || CURRENT > '9')
             break;
 
           buffer_push (&buffer, CURRENT);
@@ -213,26 +279,49 @@ parse_number (parser_context_t* ctx)
 }
 
 cr_object
+parse_character (parser_context_t* ctx)
+{
+  assert (CURRENT == '?', "Invalid character literal");
+  advance (ctx);
+
+  cr_object value = parse_number (ctx);
+  assert (IS_INTEGER (value), "Only integer-valued characters are allowed");
+  assert (AS_INTEGER (value) >= -128 && AS_INTEGER (value) <= 127,
+          "Only signed, single-byte values are supported");
+  return alloc_char (ctx->memory, AS_INTEGER (value));
+}
+
+cr_object
 parse_symbol (parser_context_t* ctx)
 {
   buffer_t buffer = make_buffer ();
 
   while (HAS_NEXT)
     {
-      if (!((CURRENT >= 'a' && CURRENT <= 'z')
-            || (CURRENT >= 'A' && CURRENT <= 'z') || CURRENT == '!'
-            || (CURRENT >= '#' && CURRENT <= '%')
-            || (CURRENT >= '*' && CURRENT <= ':')
-            || (CURRENT >= '<' && CURRENT <= '@') || CURRENT == '^'
-            || CURRENT == '_' || CURRENT == '~'))
-        break;
+      if ((CURRENT >= 'A' && CURRENT <= 'Z')
+          || (CURRENT >= 'a' && CURRENT <= 'z')
+          || (CURRENT >= '#' && CURRENT <= '%')
+          || (CURRENT >= '*' && CURRENT <= ':')
+          || (CURRENT >= '<' && CURRENT <= '@')
+          || (CURRENT == '!' || CURRENT == '^')
+          || (CURRENT == '_' || CURRENT == '~'))
+        /* TODO: use cr_char for buffer characters. */
+        buffer_push (&buffer, CURRENT);
+      else
+        {
+          p_assert (IS_SEPARATOR (0) || (CURRENT == '(' || CURRENT == ')')
+                        || (CURRENT == '[' || CURRENT == ']'),
+                    "Unrecognised character");
+          break;
+        }
 
-      /* TODO: use cr_char for buffer characters. */
-      buffer_push (&buffer, CURRENT);
       advance (ctx);
     }
 
-  assert (buffer.length > 0, "Parsed an empty identifier");
+  p_assert (buffer.length > 0, "Empty identifier");
+
+  if (buffer.length == 3 && !strncmp (buffer.data, "nil", 3))
+    return NIL;
 
   cr_object symbol
       = alloc_interned_symbol (ctx->memory, buffer.data, buffer.length);
@@ -248,16 +337,15 @@ parse (parser_context_t* ctx)
       /* Handle CRLF vs CR vs LF equally. */
       ctx->f_line_end = (CURRENT == '\r' && PEEK (1) == '\n')
                         || (CURRENT == '\n' && PEEK (-1) != '\r')
-                        || CURRENT == '\r';
-
-      if (ctx->f_line_end)
-        ctx->f_comment = 0;
+                        || (CURRENT == '\r' && PEEK (1) != '\n');
 
       if (CURRENT == ';' && !ctx->f_in_string)
         ctx->f_comment = 1;
 
-      ctx->f_content = !ctx->f_line_end && !ctx->f_comment
-                       && (CURRENT != ' ' && CURRENT != '\t');
+      if (ctx->f_line_end)
+        ctx->f_comment = 0;
+
+      ctx->f_content = !ctx->f_comment && !IS_SEPARATOR (0);
 
       if (!ctx->f_content)
         {
@@ -265,7 +353,7 @@ parse (parser_context_t* ctx)
           continue;
         }
 
-      if (IS_STRING_LITERAL)
+      if (IS_STRING_LITERAL (0))
         {
           advance (ctx);
           return parse_string (ctx);
@@ -277,6 +365,15 @@ parse (parser_context_t* ctx)
           return parse_list (ctx);
         }
 
+      if (CURRENT == '[')
+        {
+          advance (ctx);
+          return parse_vector (ctx);
+        }
+
+      if (CURRENT == '?')
+        return parse_character (ctx);
+
       if ((CURRENT >= '0' && CURRENT <= '9')
           || ((CURRENT == '-' || CURRENT == '+')
               && (PEEK (1) >= '0' && PEEK (1) <= '9')))
@@ -285,6 +382,6 @@ parse (parser_context_t* ctx)
       return parse_symbol (ctx);
     }
 
-  assert (HAS_NEXT, "Reached end of file");
+  p_assert (HAS_NEXT, "Reached end of file");
   return NULL;
 }

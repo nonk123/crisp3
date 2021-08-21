@@ -16,7 +16,7 @@
       if (!(expr))                                                            \
         {                                                                     \
           eprintf ("File: %s:%d\n", __FILE__, __LINE__);                      \
-          eprintf ("Assertion failed: %s\nDetails: ", #expr);                 \
+          eprintf ("Assertion failed: " #expr "\nDetails: ");                 \
           eprintf (message __VA_OPT__ (, ) __VA_ARGS__);                      \
           eprintf ("\n");                                                     \
                                                                               \
@@ -25,12 +25,9 @@
     }                                                                         \
   while (0);
 
-#define assert_non_null(expr)                                                 \
-  assert ((expr) != NULL, "\"%s\" cannot be null", #expr)
+#define assert_non_null(expr) assert ((expr) != NULL, #expr " cannot be null")
 
 #define assert_mem(expr) assert ((expr) != NULL, "Memory allocation failed")
-
-#define error(...) assert (0, __VA_ARGS__)
 
 void* safe_malloc (int);
 void* safe_calloc (int, int);

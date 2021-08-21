@@ -19,7 +19,9 @@ test_%: test_%.c $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $@.c $(OBJS)
 	@./$@ && echo "$@: success" || echo "$@: fail"
 
-main.o: main.c tokenizer.h
+test_parser: test.lisp
+
+main.o: main.c
 util.o: util.c util.h
 buffer.o: buffer.c buffer.h util.o
 types.o: types.c types.h util.o

@@ -91,19 +91,33 @@ borrow_object (cr_object object)
       while (!IS_NIL (object))
         {
           object->ref_count++;
-          borrow_object (CAR (object));
+          own_object (CAR (object), object);
           object = CDR (object);
         }
     }
   else if (IS_VECTOR (object))
     {
-      for (int i = 0; i < VECTOR_CAPACITY (object); i++)
-        borrow_object (VECTOR_DATA (object)[i]);
-
       object->ref_count++;
+
+      for (int i = 0; i < VECTOR_CAPACITY (object); i++)
+        own_object (VECTOR_DATA (object)[i], object);
     }
   else
     object->ref_count++;
+}
+
+void
+own_object (cr_object object, cr_object owner)
+{
+  for (int i = 0; i < owner->ref_count; i++)
+    borrow_object (object);
+}
+
+void
+disown_object (cr_object object, cr_object owner)
+{
+  for (int i = 0; i < owner->ref_count; i++)
+    return_object (object);
 }
 
 void
@@ -156,8 +170,8 @@ vector_set (cr_object vector, cr_int index, cr_object new_value)
           "Index out of bounds");
 
   cr_object old_value = VECTOR_DATA (vector)[index];
-  return_object (old_value);
+  disown_object (old_value, vector);
 
-  borrow_object (new_value);
+  own_object (new_value, vector);
   VECTOR_DATA (vector)[index] = new_value;
 }

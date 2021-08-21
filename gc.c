@@ -98,13 +98,13 @@ list_append (memory_t* memory, cr_object* list, cr_object value)
 
   while (!IS_NIL (current))
     {
-      assert (IS_CONS (current),
-              "Expected a pointer nil (empty list) or a cons cell");
+      assert (IS_CONS (current), "Expected nil (empty list) or a cons cell");
       tail = current;
       current = CDR (current);
     }
 
   CDR (tail) = alloc_cons (memory, value, NIL);
+  own_object (tail, CDR (tail));
 }
 
 memory_t
@@ -126,6 +126,9 @@ free_memory (memory_t* memory)
       free (memory->objects);
       memory->objects = NULL;
     }
+
+  memory->capacity = 0;
+  memory->objects_count = 0;
 }
 
 #define MEMORY_EXPANSION 1024

@@ -27,18 +27,30 @@ print_object (cr_object object)
       putchar ('(');
 
       print_object (CAR (object));
-
       object = CDR (object);
+
+      if (!IS_CONS (object))
+        {
+          printf (" . ");
+          print_object (object);
+          putchar (')');
+          break;
+        }
 
       while (!IS_NIL (object))
         {
           putchar (' ');
-          print_object (CAR (object));
 
           if (IS_CONS (object))
-            object = CDR (object);
+            {
+              print_object (CAR (object));
+              object = CDR (object);
+            }
           else
-            object = NIL;
+            {
+              print_object (object);
+              object = NIL;
+            }
         }
 
       putchar (')');
