@@ -13,4 +13,4 @@ with a C API for allocating new objects.
 * `make tests` runs the currently defined tests for various components
   of the interpreter. They come in .c files with a `main` function and
   a `test_` prefix. Plain and simple.
-* `make clean` deletes the compiled object files and executables.
+* `make clean` deletes the compiled object-files and executables.

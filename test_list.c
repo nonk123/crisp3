@@ -14,8 +14,8 @@ main ()
   assert (IS_INTEGER (a), "A is not an integer");
   assert (IS_INTEGER (b), "B is not an integer");
 
-  bind (&stack, a, make_interned_symbol_s ("a"));
-  bind (&stack, b, make_interned_symbol_s ("b"));
+  bind (&stack, a, alloc_symbol_s ("a"));
+  bind (&stack, b, alloc_symbol_s ("b"));
 
   cr_object list = alloc_cons (a, alloc_cons (b, NIL));
 
@@ -23,14 +23,14 @@ main ()
   assert (IS_CONS (CDR (list)), "CDR of LIST is not a cons cell");
   assert (IS_NIL (CDDR (list)), "LIST is unterminated");
 
-  bind (&stack, list, make_interned_symbol_s ("list"));
+  bind (&stack, list, alloc_symbol_s ("list"));
 
   cr_int sum = 0;
   cr_object current = list;
 
   while (!IS_NIL (current))
     {
-      sum += AS_INTEGER (CAR (current));
+      sum += AS_INTEGER_V (CAR (current));
       current = CDR (current);
     }
 

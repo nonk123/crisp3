@@ -13,7 +13,7 @@ main ()
   cr_object grid = alloc_vector (size);
   assert (IS_VECTOR (grid), "GRID is not a vector");
 
-  bind (&stack, grid, make_interned_symbol_s ("grid"));
+  bind (&stack, grid, alloc_symbol_s ("grid"));
 
   /* Generate a simple multiplication table. */
   for (int i = 1; i <= size; i++)
@@ -37,7 +37,7 @@ main ()
 
     cr_object entry = vector_get (vector_get (grid, row - 1), column - 1);
     assert (IS_INTEGER (entry), "ENTRY is not an integer");
-    assert (AS_INTEGER (entry) == product, "Product calculated incorrectly");
+    assert (AS_INTEGER_V (entry) == product, "Product calculated incorrectly");
   }
 
   stack_pop (&stack);

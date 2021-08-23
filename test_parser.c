@@ -10,13 +10,13 @@ print_object (cr_object object)
       printf ("nil");
       break;
     case INTEGER:
-      printf ("%d", AS_INTEGER (object));
+      printf ("%d", AS_INTEGER_V (object));
       break;
     case REAL:
-      printf ("%lf", AS_REAL (object));
+      printf ("%lf", AS_REAL_V (object));
       break;
     case CHARACTER:
-      printf ("?%d", AS_CHARACTER (object));
+      printf ("?%d", AS_CHARACTER_V (object));
       break;
     case SYMBOL:
       for (int i = 0; i < SYMBOL_LENGTH (object); i++)
@@ -61,7 +61,7 @@ print_object (cr_object object)
 
       print_object (VECTOR_DATA (object)[0]);
 
-      for (int i = 1; i < VECTOR_CAPACITY (object); i++)
+      for (int i = 1; i < VECTOR_LENGTH (object); i++)
         {
           putchar (' ');
           print_object (VECTOR_DATA (object)[i]);

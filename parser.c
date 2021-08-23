@@ -299,9 +299,9 @@ parse_character (parser_context_t* ctx)
 
   cr_object value = parse_number (ctx);
   assert (IS_INTEGER (value), "Only integer-valued characters are allowed");
-  assert (AS_INTEGER (value) >= -128 && AS_INTEGER (value) <= 127,
+  assert (AS_INTEGER_V (value) >= -128 && AS_INTEGER_V (value) <= 127,
           "Only signed, single-byte values are supported");
-  return alloc_char (AS_INTEGER (value));
+  return alloc_char (AS_INTEGER_V (value));
 }
 
 cr_object

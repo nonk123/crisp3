@@ -25,6 +25,6 @@ main.o: main.c
 util.o: util.c util.h
 buffer.o: buffer.c buffer.h util.o
 types.o: types.c types.h util.o
-gc.o: gc.c gc.h util.o types.o
+gc.o: gc.c gc.h types.o util.o
 stack.o: stack.c stack.h gc.o util.o
-parser.o: parser.c parser.h buffer.o types.o gc.o util.h
+parser.o: parser.c parser.h buffer.o types.o gc.o util.o
